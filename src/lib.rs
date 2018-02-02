@@ -23,8 +23,14 @@
 #[cfg(feature = "std")]
 extern crate core;
 
+#[cfg(any(target_arch = "asmjs", target_arch = "wasm32"))]
+extern crate stdweb;
+
 #[cfg(all(feature = "generic-impls"))]
 use core::ops::Neg;
+
+#[cfg(any(target_arch = "asmjs", target_arch = "wasm32"))]
+use stdweb::js;
 
 
 /// No-Op(timisations, Please)
@@ -43,7 +49,34 @@ pub fn noop(input: u8) -> u8 {
 #[cfg(any(target_arch = "asmjs", target_arch = "wasm32"))]
 #[inline(never)]
 pub fn noop(input: u8) -> u8 {
-    input
+    let result: u8;
+
+    unsafe { // I'm so sorry.
+        result = js! { // Forgive me my sins.
+r###"
+;; Please, you have to believe me, I wrote inline wasm for a good cause.
+(module
+  ;; In wasm, the only types are i32, i64, f32, and f64.  Terrifyingly,
+  ;; according to the spec, [0] "Integers are not inherently signed or unsigned,
+  ;; their interpretation is determined by individual operations."  Which, what
+  ;; I hear is "no time to explain what's under the hood… GOTTA GO FAST."
+  ;;
+  ;; Fortunately, it shouldn't matter (???), because we're just tricking the
+  ;; compiler into thinking we're doing something with the input data.
+  ;;
+  ;; [0]: https://webassembly.github.io/spec/core/syntax/types.html#syntax-valtype
+  ;;
+  (func $ohno (param $input i32) (result i32)
+    (local $result i32)
+    (set_local $result (get_local $input))
+    (get_local $result)
+  )
+  (export "oh_no" $ohno)
+)
+oh_no("### + @{input} + r###")"###
+        }
+    }
+    result
 }
 
 /// A `Mask` represents a choice which is _not_ a boolean.
