@@ -22,6 +22,7 @@
 extern crate std;
 
 use core::ops::{BitAnd, BitOr, BitXor, Not};
+use core::iter::{FromIterator, IntoIterator};
 
 #[cfg(feature = "generic-impls")]
 use core::ops::Neg;
@@ -329,6 +330,22 @@ generate_integer_conditional_select!( u16  i16);
 generate_integer_conditional_select!( u32  i32);
 generate_integer_conditional_select!( u64  i64);
 generate_integer_conditional_select!(u128 i128);
+
+impl<T> ConditionallySelectable for T
+where
+    T: IntoIterator,
+    T::Item: ConditionallySelectable,
+{
+    #[inline]
+    fn conditional_select(a: &T, b: &T, choice: Choice) -> T {
+        debug_assert!(a.len() == b.len());
+
+        a.into_iter()
+            .zip(b.into_iter())
+            .map(|this, that| this.conditional_select(that, choice))
+            .collect()
+    }
+}
 
 /// A type which can be conditionally negated in constant time.
 ///
